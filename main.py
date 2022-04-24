@@ -114,10 +114,10 @@ def display_source_points_and_attractors(points: List[List],
         sample_image.set_RGB_at(color=color_attractors[p[2]], x=p[0][0], y=p[0][1])
     box_width = int(source_width / k)
     for i in range(k):
-        sample_image.set_RGB_region_at_rect([[color_attractors[i]]]*(box_width*20),
+        sample_image.set_RGB_region_at_rect([[color_attractors[i] for k in range(box_width)] for j in range(20)],
                                             (box_width*i, source_height, box_width, 20))
     sample_image.refresh()
-    display = FalconImageDisplay(sample_image)
+    display = FalconImageDisplay(sample_image,"Sampling")
     display.update()
     return display
 
