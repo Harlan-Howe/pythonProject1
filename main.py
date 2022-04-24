@@ -38,6 +38,12 @@ def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List[Coor
     return results
 
 def cluster_colors_from_points(source_points: List[List[Coordinates, Color, int]]) -> List[Color]:
+    """
+    Uses the K-Means algorithm to clusters all the given points into k colors, picking the optimal colors
+    for doing so.
+    :param source_points: a list of [coordinates, colors, attractor_nums] - the coordinates are ignored at this point.
+    :return: a list of color attractors; the attractor_nums in the source_points parameter are altered to point to these
+    """
     attractors = []
     for i in range(k):
         attractors.append((random.randint(0,256), random.randint(0,256), random.randint(0,256)))
