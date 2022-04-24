@@ -2,6 +2,7 @@ import random
 from typing import List, Tuple
 from FalconImageFile import FalconImage
 from FalconImageDisplayFile import FalconImageDisplay
+import pyglet
 
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
@@ -17,10 +18,13 @@ def main():
     source_image = FalconImage(filename)
     source_points = sample_N_points_from_falconimage(num_samples, source_image)
     color_attractors = cluster_colors_from_points(source_points)
+    display_source_points_and_attractors(source_points, source_image.width, source_image.height)
 
+    # pyglet.clock.schedule_interval(perform_animation_step, 0.001)
 
+    pyglet.app.run()
 
-def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List[Coordinates, Color, int]]:
+def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List]:
     """
     selects N points on the screen (potentially with duplicates) and generates a list of the points' coordinates,
     colors, and randomized attractor_numbers for a k-means search, to be performed later.
@@ -30,14 +34,14 @@ def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List[Coor
     """
     results = []
     for i in range(N):
-        x = random.randint(0, img.width)
-        y = random.randint(0, img.height)
+        x = random.randint(0, img.width-1)
+        y = random.randint(0, img.height-1)
         color = img.get_RGB_at(x,y)
-        attractor = random.randint(0,k)
+        attractor = random.randint(0,k-1)
         results.append([(x,y),color,attractor])
     return results
 
-def cluster_colors_from_points(source_points: List[List[Coordinates, Color, int]]) -> List[Color]:
+def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
     """
     Uses the K-Means algorithm to clusters all the given points into k colors, picking the optimal colors
     for doing so.
@@ -46,11 +50,12 @@ def cluster_colors_from_points(source_points: List[List[Coordinates, Color, int]
     """
     attractors = []
     for i in range(k):
-        attractors.append((random.randint(0,256), random.randint(0,256), random.randint(0,256)))
+        attractors.append((random.randint(0,255), random.randint(0,255), random.randint(0,255)))
     iterations = 0
     while True:
         # REASSIGN ATTRACTORS TO DOTS
         iterations += 1
+        print(f"K-Means: iteration {iterations}")
         made_a_change = False
         for data in source_points:
             data_color = data[1]
@@ -86,12 +91,35 @@ def cluster_colors_from_points(source_points: List[List[Coordinates, Color, int]
                 if N > 0:
                     attractors[i] = (int(r/N), int(g/N), int(b/N))
                 else:
-                    attractors[i] = (random.randint(0,256), random.randint(0,256, random.randint(0,256)))
+                    attractors[i] = (random.randint(0,255), random.randint(0,255, random.randint(0,255)))
 
         else:
             break # done with the k Means search process.
 
         return attractors
+
+def display_source_points_and_attractors(points: List[List],
+                                         source_width: int,
+                                         source_height: int) -> FalconImageDisplay:
+    """
+    creates a new FalconImage window that shows the sample dots (in reduced colors) and a row of the k attractor colors.
+    :param points: A list of [Coordinates, Color, attractor_num] that we wish to plot. (The color is ignored; instead,
+                    we use the color associated with the attractor_num.)
+    :param source_width: The width of the window to create.
+    :param source_height: The window will have this height, plus 20
+    :return: a FalconImageDisplay with the image we are creating.
+    """
+    sample_image = FalconImage(None, width= source_width, height = source_height+20)
+    for p in points:
+        sample_image.set_RGB_at(color=color_attractors[p[2]], x=p[0][0], y=p[0][1])
+    box_width = int(source_width / k)
+    for i in range(k):
+        sample_image.set_RGB_region_at_rect([[color_attractors[i]]]*(box_width*20),
+                                            (box_width*i, source_height, box_width, 20))
+    sample_image.refresh()
+    display = FalconImageDisplay(sample_image)
+    display.update()
+    return display
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
