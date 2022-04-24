@@ -96,7 +96,7 @@ def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
         else:
             break # done with the k Means search process.
 
-        return attractors
+    return attractors
 
 def display_source_points_and_attractors(points: List[List],
                                          source_width: int,
