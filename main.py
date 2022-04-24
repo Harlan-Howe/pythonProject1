@@ -7,10 +7,10 @@ import pyglet
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
 
-k = 5
+k = 10
 color_attractors: List[Color] = []
 filename = "Howe-2021-reduced.jpg"
-num_samples = 1000
+num_samples = 2000
 
 
 def main():
@@ -20,6 +20,7 @@ def main():
     color_attractors = cluster_colors_from_points(source_points)
     display_source_points_and_attractors(source_points, source_image.width, source_image.height)
 
+    training_inputs, training_outputs = generate_data_for_model_from_samples(source_points)
     # pyglet.clock.schedule_interval(perform_animation_step, 0.001)
 
     pyglet.app.run()
@@ -120,6 +121,27 @@ def display_source_points_and_attractors(points: List[List],
     display = FalconImageDisplay(sample_image,"Sampling")
     display.update()
     return display
+
+def generate_data_for_model_from_samples(points: List[List]) -> Tuple[List[Coordinates], List[List[int]]]:
+    """
+    converts the data that we've sampled from the source image into two lists that are in a format readable by
+    the ANN: a list of the (x, y) coordinates, and a list of one-hot readings for the attractor_nums. The one-hot
+    is a list of k numbers, all of which are zero, except one that is 1. Which value gets the 1 corresponds to
+    the attractor_num.
+    For instance, if k = 6 and attractor_num is 3, then the one_hot would be [0, 0, 0, 1, 0, 0].
+                  if k = 8 and attractor_num is 0, then the one_hot would be [1, 0, 0, 0, 0, 0, 0, 0].
+    :param points: a list of [coordinates, color, attractor_num] (the color is ignored.)
+    :return: a list of coordinates and a list of one-hots. Both lists should have the same number of items, the number
+                of [coordinate, color, attractor_num] data points as the given list.
+    """
+    inputs = []
+    outputs = []
+    for coords, color, att_num in points:
+        inputs.append(coords)
+        one_hot = [0] * k
+        one_hot[att_num] = 1
+        outputs.append(one_hot)
+    return inputs, outputs
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
