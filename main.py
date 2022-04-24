@@ -91,7 +91,7 @@ def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
                 if N > 0:
                     attractors[i] = (int(r/N), int(g/N), int(b/N))
                 else:
-                    attractors[i] = (random.randint(0,255), random.randint(0,255, random.randint(0,255)))
+                    attractors[i] = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
 
         else:
             break # done with the k Means search process.
