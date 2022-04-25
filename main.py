@@ -1,8 +1,13 @@
+print("Importing standard libraries")
 import random
 from typing import List, Tuple
 from FalconImageFile import FalconImage
 from FalconImageDisplayFile import FalconImageDisplay
 import pyglet
+print("Importing Tensorflow.")
+import tensorflow as tf
+from tensorflow.keras import layers
+print("Done importing.")
 
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
@@ -10,18 +15,30 @@ Coordinates = Tuple[int, int]
 k = 10
 color_attractors: List[Color] = []
 filename = "Howe-2021-reduced.jpg"
-num_samples = 2000
-
+num_samples = 3000
+model: tf.keras.Model = None
+destination_image: FalconImage = None
+destination_window: FalconImageDisplay = None
+num_points_per_update = 100
 
 def main():
-    global color_attractors
+    global color_attractors, model, destination_image, destination_window
+    print("getting color data.")
     source_image = FalconImage(filename)
     source_points = sample_N_points_from_falconimage(num_samples, source_image)
     color_attractors = cluster_colors_from_points(source_points)
-    display_source_points_and_attractors(source_points, source_image.width, source_image.height)
-
+    source_window = display_source_points_and_attractors(source_points, source_image.width, source_image.height)
+    source_window.set_location(0,0)
+    print("Setting up ANN.")
     training_inputs, training_outputs = generate_data_for_model_from_samples(source_points)
-    # pyglet.clock.schedule_interval(perform_animation_step, 0.001)
+
+    model = create_ANN_model()
+    model.fit(training_inputs, training_outputs, batch_size = 32, epochs = 100)
+
+    destination_image = FalconImage(None, source_image.width, source_image.height)
+    destination_window = FalconImageDisplay(destination_image, "Prediction")
+
+    pyglet.clock.schedule_interval(perform_animation_step, 0.001)
 
     pyglet.app.run()
 
@@ -143,6 +160,49 @@ def generate_data_for_model_from_samples(points: List[List]) -> Tuple[List[Coord
         outputs.append(one_hot)
     return inputs, outputs
 
-# Press the green button in the gutter to run the script.
+
+def create_ANN_model() -> tf.keras.Model:
+    my_model = tf.keras.Sequential(
+        [
+            layers.Dense(100),
+            layers.Dense(30),
+            layers.Dense(30),
+            layers.Dense(k)
+
+        ]
+    )
+
+    my_model.compile(loss=tf.keras.losses.MeanSquaredError(),
+                          optimizer=tf.optimizers.Adam())
+
+    return my_model
+
+def perform_animation_step(deltaT: float):
+    """
+    asks the AI model to predict the attractor number for "num_points_per_update" random points on the screen and draws
+    the corresponding colored dots in the window.
+    :param deltaT: The time since the last perform_animation_step (not used)
+    :return: None
+    """
+    global destination_image, destination_window
+    points = []
+    for i in range(num_points_per_update):
+        p = (random.randint(0,destination_image.width-1), random.randint(0,destination_image.height-1))
+        points.append(p)
+
+    output = model.predict(points)
+
+    for scores in output:
+        max_value = -99999
+        max_index = 0
+        for i in range(k):
+            if scores[i] > max_value:
+                max_value = scores[i]
+                max_index = i
+        destination_image.set_RGB_at(color_attractors[max_index], points[i][0], points[i][1])
+
+    destination_image.refresh()
+    destination_window.update()
+
 if __name__ == '__main__':
     main()
