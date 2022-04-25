@@ -4,10 +4,14 @@ from typing import List, Tuple
 from FalconImageFile import FalconImage
 from FalconImageDisplayFile import FalconImageDisplay
 import pyglet
+import datetime
+start = datetime.datetime.now()
 print("Importing Tensorflow.")
 import tensorflow as tf
 from tensorflow.keras import layers
 print("Done importing.")
+end = datetime.datetime.now()
+print(f"Time to import: {end-start}.")
 
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
@@ -19,7 +23,7 @@ num_samples = 3000
 model: tf.keras.Model = None
 destination_image: FalconImage = None
 destination_window: FalconImageDisplay = None
-num_points_per_update = 100
+num_points_per_update = 500
 
 def main():
     global color_attractors, model, destination_image, destination_window
@@ -30,10 +34,13 @@ def main():
     source_window = display_source_points_and_attractors(source_points, source_image.width, source_image.height)
     source_window.set_location(0,0)
     print("Setting up ANN.")
+    start = datetime.datetime.now()
     training_inputs, training_outputs = generate_data_for_model_from_samples(source_points)
 
     model = create_ANN_model()
     model.fit(training_inputs, training_outputs, batch_size = 32, epochs = 100)
+    end = datetime.datetime.now()
+    print(f"Time to create and train: {end - start}.")
 
     destination_image = FalconImage(None, source_image.width, source_image.height)
     destination_window = FalconImageDisplay(destination_image, "Prediction")
@@ -190,9 +197,12 @@ def perform_animation_step(deltaT: float):
         p = (random.randint(0,destination_image.width-1), random.randint(0,destination_image.height-1))
         points.append(p)
 
+    print(f"{len(points)=}\t{len(points[0])=}")
     output = model.predict(points)
+    print(f"{len(output)=}\t{len(output[0])=}")
 
-    for scores in output:
+    for i in range(num_points_per_update):
+        scores = output[i]
         max_value = -99999
         max_index = 0
         for i in range(k):
