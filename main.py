@@ -18,8 +18,8 @@ Coordinates = Tuple[int, int]
 
 k = 10
 color_attractors: List[Color] = []
-filename = "Howe-2021-reduced.jpg"
-num_samples = 3000
+filename = "flowers.png"
+num_samples = 6000
 model: tf.keras.Model = None
 destination_image: FalconImage = None
 destination_window: FalconImageDisplay = None
@@ -38,12 +38,13 @@ def main():
     training_inputs, training_outputs = generate_data_for_model_from_samples(source_points)
 
     model = create_ANN_model()
-    model.fit(training_inputs, training_outputs, batch_size = 32, epochs = 100)
+    model.fit(training_inputs, training_outputs, batch_size = 10, epochs = 1000)
     end = datetime.datetime.now()
     print(f"Time to create and train: {end - start}.")
 
     destination_image = FalconImage(None, source_image.width, source_image.height)
     destination_window = FalconImageDisplay(destination_image, "Prediction")
+    destination_window.set_location(destination_image.width,0)
 
     pyglet.clock.schedule_interval(perform_animation_step, 0.001)
 
@@ -171,8 +172,8 @@ def generate_data_for_model_from_samples(points: List[List]) -> Tuple[List[Coord
 def create_ANN_model() -> tf.keras.Model:
     my_model = tf.keras.Sequential(
         [
-            layers.Dense(100),
-            layers.Dense(30),
+            layers.Dense(300),
+            layers.Dense(150),
             layers.Dense(30),
             layers.Dense(k)
 
@@ -197,18 +198,16 @@ def perform_animation_step(deltaT: float):
         p = (random.randint(0,destination_image.width-1), random.randint(0,destination_image.height-1))
         points.append(p)
 
-    print(f"{len(points)=}\t{len(points[0])=}")
     output = model.predict(points)
-    print(f"{len(output)=}\t{len(output[0])=}")
 
     for i in range(num_points_per_update):
         scores = output[i]
         max_value = -99999
         max_index = 0
-        for i in range(k):
-            if scores[i] > max_value:
-                max_value = scores[i]
-                max_index = i
+        for j in range(k):
+            if scores[j] > max_value:
+                max_value = scores[j]
+                max_index = j
         destination_image.set_RGB_at(color_attractors[max_index], points[i][0], points[i][1])
 
     destination_image.refresh()
