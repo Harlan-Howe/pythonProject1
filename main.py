@@ -51,7 +51,8 @@ def main():
 
     #temp....
     destination_image = FalconImage(None, source_image.width, source_image.height)
-    destination_window = FalconImageDisplay(destination_image, "Prediction", perform_animation_step)
+
+    destination_window = FalconImageDisplay(destination_image, "Prediction", perform_animation_step, save_data)
     destination_window.set_location(2*destination_image.width, 20)
 
     # start = datetime.datetime.now()
@@ -237,7 +238,7 @@ def perform_animation_step(deltaT: float):
     :return: None
     """
     global destination_image, destination_window, total_epochs_so_far
-
+    print("Starting fit....")
     start = datetime.datetime.now()
     model.fit(training_inputs, training_outputs, batch_size=32, epochs=epochs_per_animation_step)
     total_epochs_so_far += epochs_per_animation_step
@@ -274,6 +275,9 @@ def perform_animation_step(deltaT: float):
         print("I should save.")
         destination_window.needs_save = False
     print("Done.")
+
+def save_data():
+    print ("Save!")
 
 def get_mode_and_filename():
     no_choice_made = True
