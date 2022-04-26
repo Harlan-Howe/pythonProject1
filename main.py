@@ -4,7 +4,7 @@ from typing import List, Tuple
 from FalconImageFile import FalconImage
 from FalconImageDisplayFile import FalconImageDisplay
 import pyglet
-import datetime
+import datetime, time
 start = datetime.datetime.now()
 print("Importing Tensorflow.")
 import tensorflow as tf
@@ -13,42 +13,54 @@ print("Done importing.")
 end = datetime.datetime.now()
 print(f"Time to import: {end-start}.")
 
+# flowers.png --> https://www.healthline.com/nutrition/edible-flowers
+
+
+
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
 
-k = 10
+k = 5
 color_attractors: List[Color] = []
 filename = "flowers.png"
-num_samples = 6000
+num_samples = 3000
 model: tf.keras.Model = None
 destination_image: FalconImage = None
 destination_window: FalconImageDisplay = None
-num_points_per_update = 500
+num_points_per_update = 5000
 
 def main():
-    global color_attractors, model, destination_image, destination_window
+    global color_attractors, model, destination_image, destination_window, training_inputs, training_outputs
     print("getting color data.")
     source_image = FalconImage(filename)
     source_points = sample_N_points_from_falconimage(num_samples, source_image)
     color_attractors = cluster_colors_from_points(source_points)
+    generate_reduced_color_image(color_attractors, source_image)
     source_window = display_source_points_and_attractors(source_points, source_image.width, source_image.height)
-    source_window.set_location(0,0)
+    source_window.set_location(source_image.width,0)
     print("Setting up ANN.")
-    start = datetime.datetime.now()
     training_inputs, training_outputs = generate_data_for_model_from_samples(source_points)
 
     model = create_ANN_model()
-    model.fit(training_inputs, training_outputs, batch_size = 10, epochs = 1000)
-    end = datetime.datetime.now()
-    print(f"Time to create and train: {end - start}.")
 
+    #temp....
     destination_image = FalconImage(None, source_image.width, source_image.height)
     destination_window = FalconImageDisplay(destination_image, "Prediction")
-    destination_window.set_location(destination_image.width,0)
+    destination_window.set_location(2*destination_image.width, 20)
 
-    pyglet.clock.schedule_interval(perform_animation_step, 0.001)
-
+    # start = datetime.datetime.now()
+    # model.fit(training_inputs, training_outputs, batch_size=32, epochs=50)
+    # end = datetime.datetime.now()
+    # print(f"Time to create and train: {end - start}.")
+    #
+    # destination_image = FalconImage(None, source_image.width, source_image.height)
+    # destination_window = FalconImageDisplay(destination_image, "Prediction")
+    # destination_window.set_location(destination_image.width,0)
+    #
+    pyglet.clock.schedule_interval(perform_animation_step, 1)
+    #
     pyglet.app.run()
+
 
 def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List]:
     """
@@ -64,7 +76,7 @@ def sample_N_points_from_falconimage(N: int, img: FalconImage) -> List[List]:
         y = random.randint(0, img.height-1)
         color = img.get_RGB_at(x,y)
         attractor = random.randint(0,k-1)
-        results.append([(x,y),color,attractor])
+        results.append([(x/img.width,y/img.height),color,attractor])
     return results
 
 def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
@@ -86,16 +98,7 @@ def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
         for data in source_points:
             data_color = data[1]
             data_attractor = data[2]
-            closest_color_dist_squared = 200000
-            closest_attractor_num = -1
-            for i in range(k):
-                attractor_color = attractors[i]
-                dist_squared = 0
-                for j in range(3):
-                    dist_squared += (attractor_color[j]-data_color[j])**2
-                if dist_squared < closest_color_dist_squared:
-                    closest_color_dist_squared = dist_squared
-                    closest_attractor_num = i
+            closest_attractor_num = find_closest_attractor_to_color(attractors, data_color)
             if closest_attractor_num != data_attractor:
                 data[2] = closest_attractor_num
                 made_a_change = True
@@ -103,19 +106,18 @@ def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
         if made_a_change:
             # RECALCULATE MEANS FOR THE ATTRACTORS
             for i in range(k):
-                r = 0
-                g = 0
-                b = 0
+                color_sums = [0,0,0]
                 N = 0
                 for data in source_points:
                     if data[2] == i:
                         data_color = data[1]
-                        r += data_color[0]
-                        g += data_color[1]
-                        b += data_color[2]
+                        for j in range(3):
+                            color_sums[j] += data_color[j]
                         N += 1
                 if N > 0:
-                    attractors[i] = (int(r/N), int(g/N), int(b/N))
+                    for j in range(3):
+                        color_sums[j] = int(color_sums[j]/N)
+                    attractors[i] = color_sums
                 else:
                     attractors[i] = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
 
@@ -123,6 +125,38 @@ def cluster_colors_from_points(source_points: List[List]) -> List[Color]:
             break # done with the k Means search process.
 
     return attractors
+
+def find_closest_attractor_to_color(attractors: List[Color], col: Color) -> int:
+
+    closest_color_dist_squared = 200000
+    closest_attractor_num = -1
+    for i in range(k):
+        attractor_color = attractors[i]
+        dist_squared = 0
+        for j in range(3):
+            dist_squared += (attractor_color[j] - col[j]) ** 2
+        if dist_squared < closest_color_dist_squared:
+            closest_color_dist_squared = dist_squared
+            closest_attractor_num = i
+
+    return closest_attractor_num
+
+def generate_reduced_color_image(attractors: List[Color], img: FalconImage) -> None:
+    result_image = FalconImage(None, img.width, img.height+20)
+    for x in range(img.width):
+        for y in range(img.height):
+            c = img.get_RGB_at(x,y)
+            att = find_closest_attractor_to_color(attractors = attractors, col=c)
+            result_image.set_RGB_at(attractors[att], x, y)
+
+    box_width = int(img.width/k)
+    for i in range(k):
+        result_image.set_RGB_region_at_rect([[color_attractors[i] for k in range(box_width)] for j in range(20)],
+                                            (box_width * i, img.height, box_width, 20))
+
+    result_image.refresh()
+    reduced_color_window = FalconImageDisplay(result_image, "Reduced Color Image")
+    reduced_color_window.set_location(0,0)
 
 def display_source_points_and_attractors(points: List[List],
                                          source_width: int,
@@ -137,7 +171,8 @@ def display_source_points_and_attractors(points: List[List],
     """
     sample_image = FalconImage(None, width= source_width, height = source_height+20)
     for p in points:
-        sample_image.set_RGB_at(color=color_attractors[p[2]], x=p[0][0], y=p[0][1])
+        sample_image.set_RGB_at(color=color_attractors[p[2]], x=int(p[0][0]*source_width),
+                                y=int(p[0][1]*source_height))
     box_width = int(source_width / k)
     for i in range(k):
         sample_image.set_RGB_region_at_rect([[color_attractors[i] for k in range(box_width)] for j in range(20)],
@@ -172,10 +207,13 @@ def generate_data_for_model_from_samples(points: List[List]) -> Tuple[List[Coord
 def create_ANN_model() -> tf.keras.Model:
     my_model = tf.keras.Sequential(
         [
-            layers.Dense(300),
-            layers.Dense(150),
-            layers.Dense(30),
-            layers.Dense(k)
+            layers.Dense(400, activation='relu'),
+            layers.Dense(400, activation='sigmoid'),
+            layers.Dense(150, activation='sigmoid'),
+            layers.Dense(100, activation='sigmoid'),
+            layers.Dense(50, activation='sigmoid'),
+            layers.Dense(30, activation='sigmoid'),
+            layers.Dense(k, activation='relu')
 
         ]
     )
@@ -193,9 +231,15 @@ def perform_animation_step(deltaT: float):
     :return: None
     """
     global destination_image, destination_window
+
+    start = datetime.datetime.now()
+    model.fit(training_inputs, training_outputs, batch_size=32, epochs=50)
+    end = datetime.datetime.now()
+    print(f"Time to create and train: {end - start}.")
+
     points = []
     for i in range(num_points_per_update):
-        p = (random.randint(0,destination_image.width-1), random.randint(0,destination_image.height-1))
+        p = (random.random(), random.random())
         points.append(p)
 
     output = model.predict(points)
@@ -208,10 +252,12 @@ def perform_animation_step(deltaT: float):
             if scores[j] > max_value:
                 max_value = scores[j]
                 max_index = j
-        destination_image.set_RGB_at(color_attractors[max_index], points[i][0], points[i][1])
+        destination_image.set_RGB_at(color_attractors[max_index], int(points[i][0]*destination_image.width),
+                                     int(points[i][1]*destination_image.height))
 
     destination_image.refresh()
     destination_window.update()
+    print("Done.")
 
 if __name__ == '__main__':
     main()

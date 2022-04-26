@@ -1,5 +1,6 @@
 import pyglet
 from FalconImageFile import FalconImage
+import time
 
 class FalconImageDisplay(pyglet.window.Window):
 
@@ -12,6 +13,8 @@ class FalconImageDisplay(pyglet.window.Window):
     def on_draw(self):
         self.clear()
         self.batch.draw()
+
+
 
     def build_batch(self) -> pyglet.graphics.Batch:
         batch = pyglet.graphics.Batch()
