@@ -22,7 +22,8 @@ Coordinates = Tuple[int, int]
 
 k = 6
 color_attractors: List[Color] = []
-image_filename = "source_images/flowers.png"
+image_filename = "flowers.png"
+data_filename = None
 num_samples = 3000
 model: tf.keras.Model = None
 destination_image: FalconImage = None
@@ -31,8 +32,10 @@ num_points_per_update = 10000
 total_epochs_so_far = 0
 epochs_per_animation_step = 50
 
+
 def main():
     global color_attractors, model, destination_image, destination_window, training_inputs, training_outputs
+    global mode, data_filename
     source_image = FalconImage(f"source_images/{image_filename}")
     mode, data_filename = get_mode_and_filename()
 
@@ -48,7 +51,7 @@ def main():
 
     #temp....
     destination_image = FalconImage(None, source_image.width, source_image.height)
-    destination_window = FalconImageDisplay(destination_image, "Prediction")
+    destination_window = FalconImageDisplay(destination_image, "Prediction", perform_animation_step)
     destination_window.set_location(2*destination_image.width, 20)
 
     # start = datetime.datetime.now()
@@ -60,7 +63,7 @@ def main():
     # destination_window = FalconImageDisplay(destination_image, "Prediction")
     # destination_window.set_location(destination_image.width,0)
     #
-    pyglet.clock.schedule_interval(perform_animation_step, 1)
+    # pyglet.clock.schedule_interval(perform_animation_step, 1)
     #
     pyglet.app.run()
 
@@ -267,6 +270,9 @@ def perform_animation_step(deltaT: float):
 
     destination_image.refresh()
     destination_window.update()
+    if destination_window.needs_save:
+        print("I should save.")
+        destination_window.needs_save = False
     print("Done.")
 
 def get_mode_and_filename():
