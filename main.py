@@ -20,19 +20,22 @@ print(f"Time to import: {end-start}.")
 Color = Tuple[int, int, int]
 Coordinates = Tuple[int, int]
 
-k = 5
+k = 6
 color_attractors: List[Color] = []
-filename = "flowers.png"
+image_filename = "source_images/flowers.png"
 num_samples = 3000
 model: tf.keras.Model = None
 destination_image: FalconImage = None
 destination_window: FalconImageDisplay = None
-num_points_per_update = 5000
+num_points_per_update = 10000
+total_epochs_so_far = 0
+epochs_per_animation_step = 50
 
 def main():
     global color_attractors, model, destination_image, destination_window, training_inputs, training_outputs
-    print("getting color data.")
-    source_image = FalconImage(filename)
+    source_image = FalconImage(f"source_images/{image_filename}")
+    mode, data_filename = get_mode_and_filename()
+
     source_points = sample_N_points_from_falconimage(num_samples, source_image)
     color_attractors = cluster_colors_from_points(source_points)
     generate_reduced_color_image(color_attractors, source_image)
@@ -207,11 +210,11 @@ def generate_data_for_model_from_samples(points: List[List]) -> Tuple[List[Coord
 def create_ANN_model() -> tf.keras.Model:
     my_model = tf.keras.Sequential(
         [
-            layers.Dense(400, activation='relu'),
-            layers.Dense(400, activation='sigmoid'),
+            layers.Dense(40, activation='relu'),
+            layers.Dense(40, activation='sigmoid'),
+            layers.Dense(500, activation='sigmoid'),
+            layers.Dense(500, activation='sigmoid'),
             layers.Dense(150, activation='sigmoid'),
-            layers.Dense(100, activation='sigmoid'),
-            layers.Dense(50, activation='sigmoid'),
             layers.Dense(30, activation='sigmoid'),
             layers.Dense(k, activation='relu')
 
@@ -230,21 +233,28 @@ def perform_animation_step(deltaT: float):
     :param deltaT: The time since the last perform_animation_step (not used)
     :return: None
     """
-    global destination_image, destination_window
+    global destination_image, destination_window, total_epochs_so_far
 
     start = datetime.datetime.now()
-    model.fit(training_inputs, training_outputs, batch_size=32, epochs=50)
+    model.fit(training_inputs, training_outputs, batch_size=32, epochs=epochs_per_animation_step)
+    total_epochs_so_far += epochs_per_animation_step
     end = datetime.datetime.now()
     print(f"Time to create and train: {end - start}.")
-
+    print(f"Total Epochs used to train this model: {total_epochs_so_far}")
+    print("Generating new points")
     points = []
     for i in range(num_points_per_update):
         p = (random.random(), random.random())
         points.append(p)
 
+    # for x in range(destination_image.width):
+    #     for y in range(destination_image.height):
+    #         points.append((x/destination_image.width, y/destination_image.height))
+    print("Predicting colors at points")
     output = model.predict(points)
 
-    for i in range(num_points_per_update):
+    print("Plotting points")
+    for i in range(len(output)):
         scores = output[i]
         max_value = -99999
         max_index = 0
@@ -258,6 +268,22 @@ def perform_animation_step(deltaT: float):
     destination_image.refresh()
     destination_window.update()
     print("Done.")
+
+def get_mode_and_filename():
+    no_choice_made = True
+    while no_choice_made:
+        new_or_load_string = input("Do you want to 1) start fresh or 2) load an existing ANN?")
+        try:
+            new_or_load_num = int(new_or_load_string)
+            if new_or_load_num > 0 and new_or_load_num < 3:
+                no_choice_made = False
+            else:
+                print("Out of range. Please try again.")
+        except:
+            print("That was not a valid choice.")
+
+    data_filename = input("Type in the filename you wish to use, without the suffix.")
+    return new_or_load_num, data_filename
 
 if __name__ == '__main__':
     main()
